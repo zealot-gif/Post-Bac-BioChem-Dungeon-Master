@@ -515,9 +515,20 @@ initGame();
     }
 
     /* Core Initialization */
-    window.addEventListener('DOMContentLoaded', () => {
-      loadSavedData();
-      updateHUD();
+    // ==================== 2. 頁面載入時優先抓取題庫 ====================
+    window.addEventListener('DOMContentLoaded', async () => {
+      // 顯示簡單的載入提示（可選）
+      const startBtn = document.getElementById('start-game-btn');
+      if (startBtn) startBtn.innerText = "連線載入題庫中...";
+
+      // 等待從 Google Sheets 下載最新題庫
+      await loadQuestionBank();
+
+      // 題庫載入完成後恢復按鈕並初始化遊戲
+      if (startBtn) startBtn.innerText = "開始修煉（進入遊戲）";
+  
+      // 執行原本的遊戲初始化邏輯
+      initGame();
     });
 
     function saveGameData() {
