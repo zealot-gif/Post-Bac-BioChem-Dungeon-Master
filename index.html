@@ -390,35 +390,45 @@
   <script>
     /* ==================== POST-BAC BIOCHEM QUESTION BANK ==================== */
     // 替換為你在第二步取得的 Google Apps Script URL
-const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbxX8yxTFuJRvQYBfUae7lfA081-n2oiirWnYiqvmAOW3rdbxjx7rThtMnFch05nAywn/exec";
+// 1. 設定 API 網址
+const GOOGLE_SHEET_API = "https://script.google.com/macros/s/你的API_KEY/exec";
 
-let questionBank = []; // 預設為空陣列
+// 預設空的關卡架構
+let QUESTION_BANK = {
+  floor1: [],
+  floor2: [],
+  floor3: [],
+  floor4: []
+};
 
-// 遊戲初始化時從 Google Sheets 抓取最新題庫
 async function loadQuestionBank() {
   try {
     const response = await fetch(GOOGLE_SHEET_API);
     if (!response.ok) throw new Error("網路連線異常");
     
-    questionBank = await response.json();
-    console.log("成功從 Google Sheets 載入題庫，共 " + questionBank.length + " 題");
+    const data = await response.json();
+    
+    // 檢查回傳的資料格式
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      QUESTION_BANK = data;
+      console.log("題庫載入成功！已載入層級：", Object.keys(QUESTION_BANK));
+    } else {
+      console.warn("題庫格式不符合預期，使用靜態備用題庫");
+    }
   } catch (error) {
-    console.error("載入題庫失敗：", error);
-    // 可在這裡設置預備題庫 (Fallback) 以防網路斷線
+    console.error("載入 Google Sheets 題庫失敗：", error);
   }
 }
 
-// 在遊戲啟動流程中呼叫
-async function initGame() {
-  // 顯示「載入中...」畫面
-  showLoadingScreen();
+// 2. 在 DOM 載入時等待題庫完畢
+window.addEventListener('DOMContentLoaded', async () => {
+  // 先嘗試下載題庫
+  await loadQuestionBank();
   
-  await loadQuestionBank(); // 等待題庫載入完成
-  
-  hideLoadingScreen();
-  // 啟動遊戲主畫面
-  renderMainMenu();
-}
+  // 執行原有的遊戲初始化（例如渲染存檔資料、更新 HUD 等）
+  if (typeof loadGameData === 'function') loadGameData();
+  if (typeof updateHUD === 'function') updateHUD();
+});
 
 // 執行遊戲初始化
 initGame();
@@ -517,19 +527,13 @@ initGame();
     /* Core Initialization */
     // ==================== 2. 頁面載入時優先抓取題庫 ====================
     window.addEventListener('DOMContentLoaded', async () => {
-      // 顯示簡單的載入提示（可選）
-      const startBtn = document.getElementById('start-game-btn');
-      if (startBtn) startBtn.innerText = "連線載入題庫中...";
-
-      // 等待從 Google Sheets 下載最新題庫
-      await loadQuestionBank();
-
-      // 題庫載入完成後恢復按鈕並初始化遊戲
-      if (startBtn) startBtn.innerText = "開始修煉（進入遊戲）";
+  // 先嘗試下載題庫
+  await loadQuestionBank();
   
-      // 執行原本的遊戲初始化邏輯
-      initGame();
-    });
+  // 執行原有的遊戲初始化（例如渲染存檔資料、更新 HUD 等）
+  if (typeof loadGameData === 'function') loadGameData();
+  if (typeof updateHUD === 'function') updateHUD();
+});
 
     function saveGameData() {
       localStorage.setItem('postbac_rpg_save', JSON.stringify(player));
