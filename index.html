@@ -308,26 +308,99 @@
         }
 
         function checkAnswer(selectedIdx) {
-            const q = currentBattle.questions[currentBattle.qIndex % currentBattle.questions.length];
-            const isCorrect = (selectedIdx === q.ans);
+    const q = currentBattle.questions[currentBattle.qIndex % currentBattle.questions.length];
+    const isCorrect = (selectedIdx === q.ans);
 
-            const modal = document.getElementById('modal-explanation');
-            const body = document.getElementById('explanation-body');
-            
-            body.innerHTML = `
-                <div class="${isCorrect ? 'text-emerald-400' : 'text-red-400'} font-bold mb-2">
-                    ${isCorrect ? '✨ 回答正確！發動修仙法術攻擊！' : '❌ 回答錯誤！遭到魔物反擊！'}
-                </div>
-                <div>${q.exp || '無考點解析'}</div>
-            `;
-            modal.classList.remove('hidden');
-        }
+    let toastText = "";
+    
+    if (isCorrect) {
+        // 1. 答對：玩家攻擊怪物 (扣怪物 HP)
+        const damage = Math.floor(Math.random() * 15) + 25; // 造成 25~40 點傷害
+        currentBattle.enemyHp = Math.max(0, currentBattle.enemyHp - damage);
+        toastText = `✨ 回答正確！施展生化法術造成 ${damage} 點暴擊傷害！`;
+        
+        // 答對獲得金幣與 EXP
+        player.gold += 10;
+        player.exp += 15;
+        updateHUD();
+    } else {
+        // 2. 答錯：怪物反擊玩家 (扣玩家 HP)
+        const damage = Math.floor(Math.random() * 10) + 15; // 受到 15~25 點傷害
+        player.hp = Math.max(0, player.hp - damage);
+        toastText = `❌ 回答錯誤！遭到變性魔反擊，受到 ${damage} 點傷害！`;
+    }
 
-        function nextQuestion() {
-            document.getElementById('modal-explanation').classList.add('hidden');
-            currentBattle.qIndex++;
-            renderQuestion();
-        }
+    // 3. 即時更新血條 UI 與數字
+    updateBattleBars();
+
+    // 4. 更新戰鬥 Hint 提示文字
+    const toastEl = document.getElementById('battle-toast');
+    if (toastEl) toastEl.innerText = toastText;
+
+    // 5. 顯示解析彈窗
+    const modal = document.getElementById('modal-explanation');
+    const body = document.getElementById('explanation-body');
+    
+    body.innerHTML = `
+        <div class="${isCorrect ? 'text-emerald-400' : 'text-red-400'} font-bold mb-2">
+            ${isCorrect ? '✨ 答對了！' : '❌ 答錯了！'}
+        </div>
+        <div class="text-slate-300 leading-relaxed">${q.exp || '無詳細考點解析。'}</div>
+    `;
+    modal.classList.remove('hidden');
+}
+
+// 實時更新戰鬥中的玩家與怪物血條
+function updateBattleBars() {
+    // 玩家血條
+    const playerHpBar = document.getElementById('battle-player-hp-bar');
+    const playerHpNum = document.getElementById('battle-player-hp-num');
+    if (playerHpBar) playerHpBar.style.width = `${(player.hp / player.maxHp) * 100}%`;
+    if (playerHpNum) playerHpNum.innerText = `${player.hp}/${player.maxHp}`;
+
+    // 怪物血條
+    const enemyHpBar = document.getElementById('battle-enemy-hp-bar');
+    const enemyHpNum = document.getElementById('battle-enemy-hp-num');
+    if (enemyHpBar) enemyHpBar.style.width = `${(currentBattle.enemyHp / currentBattle.enemyMaxHp) * 100}%`;
+    if (enemyHpNum) enemyHpNum.innerText = `${currentBattle.enemyHp}/${currentBattle.enemyMaxHp}`;
+}
+
+// 更新頂部 HUD (金幣、經驗值)
+function updateHUD() {
+    const goldEl = document.getElementById('hud-gold');
+    const expBar = document.getElementById('hud-exp-bar');
+    if (goldEl) goldEl.innerText = player.gold;
+    if (expBar) expBar.style.width = `${(player.exp % 100)}%`;
+}
+
+function nextQuestion() {
+    document.getElementById('modal-explanation').classList.add('hidden');
+
+    // 檢查戰鬥勝負條件
+    if (currentBattle.enemyHp <= 0) {
+        alert("🎉 恭喜！你擊敗了魔物，順利通關此層試煉！獲得 100 金幣與 50 經驗值！");
+        player.gold += 100;
+        player.exp += 50;
+        updateHUD();
+        // 戰鬥結束，回到試煉選擇選單
+        document.getElementById('screen-battle').classList.add('hidden');
+        document.getElementById('screen-floors').classList.remove('hidden');
+        return;
+    }
+
+    if (player.hp <= 0) {
+        alert("💀 修仙道心崩潰...（HP歸零），請回調養氣血後重新挑戰！");
+        player.hp = player.maxHp; // 滿血復活
+        updateBattleBars();
+        document.getElementById('screen-battle').classList.add('hidden');
+        document.getElementById('screen-floors').classList.remove('hidden');
+        return;
+    }
+
+    // 進入下一題
+    currentBattle.qIndex++;
+    renderQuestion();
+}
 
         function selectClass(c) {
             player.currentClass = c;
