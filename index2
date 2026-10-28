@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>學士後中醫：修仙試煉館 - Post-Bac BioChem Dungeon Master</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Silkscreen & Noto Sans TC -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      background-color: #070913;
+      color: #f1f5f9;
+    }
+
+    .font-pixel {
+      font-family: 'Silkscreen', 'Noto Sans TC', monospace;
+    }
+
+    /* Retro Pixel UI Borders */
+    .pixel-box {
+      border: 4px solid #1e293b;
+      box-shadow: 
+        -4px 0 0 0 #334155,
+        4px 0 0 0 #334155,
+        0 -4px 0 0 #334155,
+        0 4px 0 0 #334155;
+    }
+
+    .pixel-btn {
+      transition: all 0.1s ease;
+      position: relative;
+    }
+    .pixel-btn:active {
+      transform: translateY(2px);
+    }
+
+    /* Health and Mana Bars */
+    .bar-glow-hp {
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+    }
+    .bar-glow-exp {
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+    }
+
+    /* Floating Damage Text Animation */
+    @keyframes floatDamage {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      50% { transform: translateY(-25px) scale(1.3); }
+      100% { opacity: 0; transform: translateY(-50px) scale(0.9); }
+    }
+    .floating-damage {
+      animation: floatDamage 0.9s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+    }
+
+    /* Screen Shake Animation on Damage */
+    @keyframes screenShake {
+      0%, 100% { transform: translate(0, 0); }
+      20% { transform: translate(-6px, 4px); }
+      40% { transform: translate(6px, -4px); }
+      60% { transform: translate(-4px, -2px); }
+      80% { transform: translate(4px, 2px); }
+    }
+    .shake-animation {
+      animation: screenShake 0.35s ease-in-out;
+    }
+
+    /* Enemy Idle Bounce */
+    @keyframes enemyFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .enemy-bounce {
+      animation: enemyFloat 2.5s ease-in-out infinite;
+    }
+
+    /* Safe Area Adaptations */
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom, 0.75rem);
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between overflow-hidden bg-slate-950">
+
+  <!-- TOP HEADER / HUD -->
+  <header class="h-14 bg-slate-900 border-b-2 border-slate-800 px-3 md:px-6 flex items-center justify-between z-20 shrink-0">
+    <!-- Player Profile Brief -->
+    <div class="flex items-center space-x-2 md:space-x-3">
+      <div id="hud-avatar" class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-emerald-950 border-2 border-emerald-500 flex items-center justify-center text-lg shadow-md">
+        🧙‍♂️
+      </div>
+      <div>
+        <div class="flex items-center space-x-1.5">
+          <span id="hud-name" class="font-bold text-xs sm:text-sm text-emerald-300">中醫修仙者</span>
+          <span id="hud-level" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 rounded font-mono">Lv.1</span>
+        </div>
+        <!-- EXP Bar -->
+        <div class="w-24 sm:w-32 bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800 mt-1">
+          <div id="hud-exp-bar" class="bg-gradient-to-r from-purple-600 to-fuchsia-500 h-full w-0 transition-all duration-300 bar-glow-exp"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats: Gold & Timer & Controls -->
+    <div class="flex items-center space-x-2 sm:space-x-4">
+      <div class="flex items-center space-x-1 bg-amber-950/60 border border-amber-700/60 px-2.5 py-1 rounded-lg text-amber-300 font-mono text-xs sm:text-sm">
+        <i class="fa-solid fa-coins text-amber-400"></i>
+        <span id="hud-gold">0</span>
+      </div>
+
+      <button onclick="openShopModal()" class="p-2 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg text-xs font-bold border border-slate-700 flex items-center gap-1">
+        <i class="fa-solid fa-store"></i> <span class="hidden sm:inline">丹藥鋪</span>
+      </button>
+
+      <button onclick="openMistakeModal()" class="p-2 bg-slate-800 hover:bg-slate-700 text-purple-300 rounded-lg text-xs font-bold border border-slate-700 flex items-center gap-1 relative">
+        <i class="fa-solid fa-book-bookmark"></i> <span class="hidden sm:inline">錯題本</span>
+        <span id="badge-mistakes" class="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-mono hidden">0</span>
+      </button>
+
+      <button id="btn-sound" onclick="toggleSound()" class="p-2 text-slate-400 hover:text-white">
+        <i id="sound-icon" class="fa-solid fa-volume-high text-sm sm:text-base"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <main id="main-container" class="flex-1 relative overflow-hidden flex flex-col justify-between bg-slate-950">
+
+    <!-- SCREEN 1: TITLE / START SCREEN -->
+    <div id="screen-title" class="absolute inset-0 z-30 bg-slate-950 flex flex-col items-center justify-between p-6 overflow-y-auto">
+      <div class="my-auto flex flex-col items-center text-center max-w-md w-full">
+        <!-- Title Banner -->
+        <div class="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 mb-2 font-pixel tracking-wider">
+          學士後中醫
+        </div>
+        <div class="text-xl sm:text-2xl font-extrabold text-amber-300 mb-6 tracking-widest border-b-2 border-amber-500/50 pb-2 w-full">
+          ⚔️ 修仙試煉館：生化魔宮 ⚔️
+        </div>
+
+        <!-- Avatar Selection -->
+        <div class="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6 shadow-2xl text-left">
+          <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">選擇你的後中醫試煉角色：</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="selectClass('tcm')" id="class-tcm" class="class-card p-3 rounded-xl border-2 border-emerald-500 bg-emerald-950/40 flex flex-col items-center text-center">
+              <span class="text-2xl mb-1">🧙‍♂️</span>
+              <span class="text-xs font-bold text-emerald-300">中醫修仙者</span>
+              <span class="text-[9px] text-slate-400 mt-1">初始 HP +20%</span>
+            </button>
+            <button onclick="selectClass('alchemist')" id="class-alchemist" class="class-card p-3 rounded-xl border-2 border-slate-800 bg-slate-900 flex flex-col items-center text-center">
+              <span class="text-2xl mb-1">🧪</span>
+              <span class="text-xs font-bold text-slate-300">基因煉金術師</span>
+              <span class="text-[9px] text-slate-400 mt-1">初始 金幣 +100</span>
+            </button>
+            <button onclick="selectClass('mage')" id="class-mage" class="class-card p-3 rounded-xl border-2 border-slate-800 bg-slate-900 flex flex-col items-center text-center">
+              <span class="text-2xl mb-1">⚡</span>
+              <span class="text-xs font-bold text-slate-300">分子法術師</span>
+              <span class="text-[9px] text-slate-400 mt-1">初始 攻擊力 +15%</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Start / Continue Buttons -->
+        <button onclick="startGame()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-slate-950 font-black text-base sm:text-lg rounded-xl shadow-xl transition-all transform hover:scale-105 active:scale-95 mb-3">
+          踏入試煉魔宮 (Start Game)
+        </button>
+        <button id="btn-reset-data" onclick="resetGameProgress()" class="text-xs text-slate-500 hover:text-red-400 underline">
+          重置存檔進度 (Reset Progress)
+        </button>
+      </div>
+
+      <div class="text-[10px] text-slate-600 font-mono text-center">
+        專為考取中國醫、義守、慈濟學士後中醫/後西醫生物與化學考題設計
+      </div>
+    </div>
+
+    <!-- SCREEN 2: LEVEL / FLOOR SELECT SCREEN -->
+    <div id="screen-floors" class="absolute inset-0 z-20 bg-slate-950 hidden flex-col p-4 sm:p-6 overflow-y-auto">
+      <div class="max-w-xl mx-auto w-full my-auto">
+        <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
+          <div>
+            <h2 class="text-lg font-extrabold text-amber-300">🏰 選擇試煉層級 (Select Floor)</h2>
+            <p class="text-xs text-slate-400">通關前一層試煉以解鎖下一層魔宮</p>
+          </div>
+          <button onclick="showTitleScreen()" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1.5 rounded-lg">主選單</button>
+        </div>
+
+        <div id="floor-list" class="space-y-3">
+          <!-- Floors dynamically generated -->
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: RPG BATTLE SCREEN -->
+    <div id="screen-battle" class="absolute inset-0 z-10 hidden flex-col justify-between p-2 sm:p-4 bg-slate-950">
+      
+      <!-- BATTLE ARENA (TOP HALF) -->
+      <div id="battle-arena" class="relative flex-1 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 border-2 border-slate-800 rounded-2xl p-3 sm:p-4 flex flex-col justify-between overflow-hidden shadow-2xl mb-2">
+        
+        <!-- Floating Damage Effect Slot -->
+        <div id="damage-floating-layer" class="absolute inset-0 pointer-events-none z-30 flex items-center justify-center"></div>
+
+        <!-- Enemy Status & Canvas Graphics -->
+        <div class="flex justify-between items-start z-10">
+          <!-- Player HP Panel -->
+          <div class="bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl w-36 sm:w-48 backdrop-blur-sm">
+            <div class="flex justify-between items-center text-[11px] mb-1">
+              <span class="font-bold text-emerald-300" id="battle-player-name">中醫修仙者</span>
+              <span class="font-mono text-slate-400 text-[10px]" id="battle-player-hp-num">100/100</span>
+            </div>
+            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+              <div id="battle-player-hp-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full w-full transition-all duration-300 bar-glow-hp"></div>
+            </div>
+          </div>
+
+          <!-- Enemy HP Panel -->
+          <div class="bg-slate-950/80 border border-slate-800 p-2.5 rounded-xl w-40 sm:w-56 backdrop-blur-sm text-right">
+            <div class="flex justify-between items-center text-[11px] mb-1">
+              <span class="font-mono text-red-400 text-[10px]" id="battle-enemy-hp-num">300/300</span>
+              <span class="font-bold text-red-300 truncate max-w-[100px]" id="battle-enemy-name">變性蛋白質魔</span>
+            </div>
+            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+              <div id="battle-enemy-hp-bar" class="bg-gradient-to-r from-red-600 to-rose-500 h-full w-full transition-all duration-300"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monster SVG Visual Canvas -->
+        <div class="my-auto flex flex-col items-center justify-center relative z-10">
+          <div id="enemy-sprite-container" class="w-28 h-28 sm:w-36 sm:h-36 enemy-bounce flex items-center justify-center filter drop-shadow-[0_0_20px_rgba(239,68,68,0.4)]">
+            <!-- Dynamic Monster SVG -->
+          </div>
+          <div id="enemy-buff-badge" class="mt-1 text-[10px] bg-red-950 border border-red-800 text-red-300 px-2 py-0.5 rounded-full font-mono hidden">
+            50:50 筆記生效中
+          </div>
+        </div>
+
+        <!-- Battle Log Toast Notification -->
+        <div id="battle-toast" class="bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-1.5 text-center text-xs font-bold text-amber-300 shadow-lg max-w-md mx-auto z-10">
+          戰鬥開始！請選擇正確答案發動修仙法術攻擊！
+        </div>
+      </div>
+
+      <!-- QUESTION & BATTLE CONTROLS (BOTTOM HALF) -->
+      <div class="bg-slate-900 border-2 border-slate-800 rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-2xl">
+        
+        <!-- Question Header & Text -->
+        <div class="mb-3">
+          <div class="flex justify-between items-center mb-1">
+            <span id="question-category" class="text-[10px] bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded-full font-bold">
+              1F 生物化學
+            </span>
+            <span id="question-count" class="text-[10px] text-slate-400 font-mono">
+              第 1 / 5 題
+            </span>
+          </div>
+          <div id="question-text" class="text-xs sm:text-sm font-bold text-slate-100 leading-relaxed min-h-[48px] flex items-center">
+            題目載入中...
+          </div>
+        </div>
+
+        <!-- Skill & Item Quick Bar -->
+        <div class="flex items-center space-x-2 mb-3">
+          <button onclick="useSkill('hint')" id="btn-skill-hint" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1">
+            📖 50:50 筆記 (<span id="count-hint">2</span>)
+          </button>
+          <button onclick="useSkill('heal')" id="btn-skill-heal" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1">
+            🧪 靈芝草藥 (<span id="count-heal">1</span>)
+          </button>
+          <button onclick="useSkill('crit')" id="btn-skill-crit" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1">
+            ⚡ 分子暴擊 (<span id="count-crit">1</span>)
+          </button>
+        </div>
+
+        <!-- Answer Options Grid A, B, C, D -->
+        <div id="options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <!-- Options generated dynamically -->
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- MODAL: ACADEMIC EXPLANATION (解析彈窗) -->
+  <div id="modal-explanation" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl p-5 w-full max-w-lg shadow-2xl animate-fade-in flex flex-col max-h-[85vh]">
+      <div id="explanation-header-badge" class="text-xs font-bold px-2.5 py-1 rounded-full self-start mb-2">
+        回答結果
+      </div>
+      <h3 id="explanation-title" class="text-sm font-bold text-amber-300 mb-2">學術考點詳細解析：</h3>
+      
+      <div id="explanation-body" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 overflow-y-auto leading-relaxed mb-4 space-y-2 font-sans">
+        <!-- Explanation text -->
+      </div>
+
+      <button onclick="nextQuestionAfterExplanation()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-lg">
+        繼續試炼 (Next Challenge)
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: SHOP (丹藥鋪) -->
+  <div id="modal-shop" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-amber-600/80 rounded-2xl p-5 w-full max-w-md shadow-2xl animate-fade-in">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+        <h3 class="text-sm font-bold text-amber-300 flex items-center gap-1.5">
+          <i class="fa-solid fa-store"></i> 試煉丹藥鋪 (Alchemy Shop)
+        </h3>
+        <button onclick="closeModal('modal-shop')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="space-y-2.5 mb-4">
+        <!-- Item 1: Potion -->
+        <div class="bg-slate-950 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between">
+          <div class="flex items-center space-x-2.5">
+            <span class="text-2xl">🧪</span>
+            <div>
+              <div class="text-xs font-bold text-emerald-300">靈芝草藥 (Heal Potion)</div>
+              <div class="text-[10px] text-slate-400">戰鬥中恢復 50% HP</div>
+            </div>
+          </div>
+          <button onclick="buyItem('heal', 50)" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-lg flex items-center gap-1">
+            <i class="fa-solid fa-coins text-[10px]"></i> 50
+          </button>
+        </div>
+
+        <!-- Item 2: Hint -->
+        <div class="bg-slate-950 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between">
+          <div class="flex items-center space-x-2.5">
+            <span class="text-2xl">📖</span>
+            <div>
+              <div class="text-xs font-bold text-amber-300">考前重點筆記 (50:50)</div>
+              <div class="text-[10px] text-slate-400">刪除兩個錯誤選項</div>
+            </div>
+          </div>
+          <button onclick="buyItem('hint', 40)" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-lg flex items-center gap-1">
+            <i class="fa-solid fa-coins text-[10px]"></i> 40
+          </button>
+        </div>
+
+        <!-- Item 3: Crit -->
+        <div class="bg-slate-950 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between">
+          <div class="flex items-center space-x-2.5">
+            <span class="text-2xl">⚡</span>
+            <div>
+              <div class="text-xs font-bold text-cyan-300">分子暴擊符 (Critical Buff)</div>
+              <div class="text-[10px] text-slate-400">下一次答對造成 2.5 倍傷害</div>
+            </div>
+          </div>
+          <button onclick="buyItem('crit', 60)" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-lg flex items-center gap-1">
+            <i class="fa-solid fa-coins text-[10px]"></i> 60
+          </button>
+        </div>
+      </div>
+
+      <button onclick="closeModal('modal-shop')" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold">離開丹藥鋪</button>
+    </div>
+  </div>
+
+  <!-- MODAL: MISTAKE VAULT (錯題本) -->
+  <div id="modal-mistakes" class="fixed inset-0 bg-black/85 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-purple-600/80 rounded-2xl p-5 w-full max-w-lg shadow-2xl animate-fade-in flex flex-col h-[80vh]">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+        <h3 class="text-sm font-bold text-purple-300 flex items-center gap-1.5">
+          <i class="fa-solid fa-book-bookmark"></i> 錯題複習本 (Mistake Vault)
+        </h3>
+        <button onclick="closeModal('modal-mistakes')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div id="mistakes-list-container" class="flex-1 overflow-y-auto space-y-3 pr-1">
+        <!-- Mistake items rendered dynamically -->
+      </div>
+
+      <div class="mt-3 border-t border-slate-800 pt-2 flex justify-between items-center">
+        <button onclick="clearMistakes()" class="text-xs text-red-400 hover:underline">清空錯題紀錄</button>
+        <button onclick="closeModal('modal-mistakes')" class="py-1.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT GAME ENGINE & QUESTION BANK -->
+  <script>
+    /* ==================== POST-BAC BIOCHEM QUESTION BANK ==================== */
+    // 替換為你在第二步取得的 Google Apps Script URL
+const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbxX8yxTFuJRvQYBfUae7lfA081-n2oiirWnYiqvmAOW3rdbxjx7rThtMnFch05nAywn/exec";
+
+let questionBank = []; // 預設為空陣列
+
+// 遊戲初始化時從 Google Sheets 抓取最新題庫
+async function loadQuestionBank() {
+  try {
+    const response = await fetch(GOOGLE_SHEET_API);
+    if (!response.ok) throw new Error("網路連線異常");
+    
+    questionBank = await response.json();
+    console.log("成功從 Google Sheets 載入題庫，共 " + questionBank.length + " 題");
+  } catch (error) {
+    console.error("載入題庫失敗：", error);
+    // 可在這裡設置預備題庫 (Fallback) 以防網路斷線
+  }
+}
+
+// 在遊戲啟動流程中呼叫
+async function initGame() {
+  // 顯示「載入中...」畫面
+  showLoadingScreen();
+  
+  await loadQuestionBank(); // 等待題庫載入完成
+  
+  hideLoadingScreen();
+  // 啟動遊戲主畫面
+  renderMainMenu();
+}
+
+// 執行遊戲初始化
+initGame();
+
+    /* Monsters Graphic Data */
+    const MONSTERS = {
+      1: { name: '變性蛋白質魔', hp: 120, maxHp: 120, atk: 15, exp: 50, gold: 30, color: '#ef4444', icon: '🧬' },
+      2: { name: 'ATP合成酶巨靈', hp: 180, maxHp: 180, atk: 22, exp: 80, gold: 50, color: '#f59e0b', icon: '⚡' },
+      3: { name: '自由基石膏怪', hp: 250, maxHp: 250, atk: 30, exp: 120, gold: 80, color: '#10b981', icon: '🧪' },
+      4: { name: '競爭性抑制劑蛇', hp: 320, maxHp: 320, atk: 38, exp: 170, gold: 120, color: '#06b6d4', icon: '🐍' },
+      5: { name: '終極考官：後中醫審判者', hp: 500, maxHp: 500, atk: 50, exp: 300, gold: 250, color: '#a855f7', icon: '👑' }
+    };
+
+    /* Player Default State & Save Data */
+    let player = {
+      classType: 'tcm',
+      className: '中醫修仙者',
+      avatar: '🧙‍♂️',
+      level: 1,
+      exp: 0,
+      maxExp: 100,
+      hp: 100,
+      maxHp: 100,
+      atk: 40,
+      gold: 50,
+      unlockedFloor: 1,
+      items: { hint: 2, heal: 1, crit: 1 },
+      mistakes: []
+    };
+
+    let currentBattle = {
+      floor: 1,
+      questionIndex: 0,
+      questions: [],
+      enemyHp: 100,
+      enemyMaxHp: 100,
+      critActive: false,
+      currentQ: null
+    };
+
+    /* Web Audio Synthesizer */
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() { if (!audioCtx) audioCtx = new AudioContext(); }
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+
+      if (type === 'hit') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+      } else if (type === 'correct') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(659.25, now + 0.08);
+        osc.frequency.setValueAtTime(783.99, now + 0.16);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now); osc.stop(now + 0.3);
+      } else if (type === 'wrong') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.setValueAtTime(100, now + 0.15);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.start(now); osc.stop(now + 0.25);
+      } else if (type === 'levelUp') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(880, now + 0.2);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc.start(now); osc.stop(now + 0.4);
+      }
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('sound-icon').className = soundEnabled ? "fa-solid fa-volume-high text-sm sm:text-base" : "fa-solid fa-volume-xmark text-sm sm:text-base text-red-400";
+    }
+
+    /* Core Initialization */
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedData();
+      updateHUD();
+    });
+
+    function saveGameData() {
+      localStorage.setItem('postbac_rpg_save', JSON.stringify(player));
+    }
+
+    function loadSavedData() {
+      const saved = localStorage.getItem('postbac_rpg_save');
+      if (saved) {
+        try {
+          player = { ...player, ...JSON.parse(saved) };
+        } catch (e) { console.error("Save load error", e); }
+      }
+    }
+
+    function resetGameProgress() {
+      if (confirm("確定要重置所有試煉進度與錯題本嗎？")) {
+        localStorage.removeItem('postbac_rpg_save');
+        location.reload();
+      }
+    }
+
+    /* Class Selection */
+    function selectClass(type) {
+      playSound('hit');
+      document.querySelectorAll('.class-card').forEach(el => {
+        el.classList.remove('border-emerald-500', 'bg-emerald-950/40');
+        el.classList.add('border-slate-800', 'bg-slate-900');
+      });
+
+      const card = document.getElementById(`class-${type}`);
+      card.classList.remove('border-slate-800', 'bg-slate-900');
+      card.classList.add('border-emerald-500', 'bg-emerald-950/40');
+
+      if (type === 'tcm') {
+        player.classType = 'tcm'; player.className = '中醫修仙者'; player.avatar = '🧙‍♂️';
+        player.maxHp = 120; player.hp = 120; player.atk = 40;
+      } else if (type === 'alchemist') {
+        player.classType = 'alchemist'; player.className = '基因煉金術師'; player.avatar = '🧪';
+        player.maxHp = 100; player.hp = 100; player.gold = 150; player.atk = 40;
+      } else if (type === 'mage') {
+        player.classType = 'mage'; player.className = '分子法術師'; player.avatar = '⚡';
+        player.maxHp = 100; player.hp = 100; player.atk = 50;
+      }
+
+      updateHUD();
+    }
+
+    function startGame() {
+      playSound('correct');
+      document.getElementById('screen-title').classList.add('hidden');
+      renderFloorSelect();
+      document.getElementById('screen-floors').classList.remove('hidden');
+      document.getElementById('screen-floors').classList.add('flex');
+    }
+
+    function showTitleScreen() {
+      document.getElementById('screen-floors').classList.add('hidden');
+      document.getElementById('screen-title').classList.remove('hidden');
+    }
+
+    /* Render Floor Map */
+    function renderFloorSelect() {
+      const container = document.getElementById('floor-list');
+      container.innerHTML = '';
+
+      const floorNames = [
+        { name: '1F 細胞與分子生物學', desc: '微管構造、轉譯機制與胞器功能' },
+        { name: '2F 生物化學與代謝途徑', desc: 'PFK-1 變構調節、TCA 循環與高能產物' },
+        { name: '3F 普通化學與熱力學', desc: '緩衝溶液、酸鹼平衡與電化學' },
+        { name: '4F 有機化學與反應機構', desc: 'SN1/SN2 反應、Walden 構型翻轉與親核取代' },
+        { name: '5F 終極BOSS - 後中醫歷屆綜合考題', desc: '酵素動力學 (Km, Vmax) 與歷屆難題試煉' }
+      ];
+
+      floorNames.forEach((f, idx) => {
+        const floorNum = idx + 1;
+        const isUnlocked = floorNum <= player.unlockedFloor;
+
+        const card = document.createElement('div');
+        card.className = `p-4 rounded-xl border-2 ${isUnlocked ? 'border-amber-600/80 bg-slate-900 cursor-pointer hover:border-amber-400' : 'border-slate-800 bg-slate-950 opacity-60'} flex items-center justify-between shadow-lg transition-all`;
+        
+        if (isUnlocked) {
+          card.onclick = () => startBattleFloor(floorNum);
+        }
+
+        card.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg ${isUnlocked ? 'bg-amber-950 text-amber-300 border border-amber-700' : 'bg-slate-800 text-slate-500'} flex items-center justify-center font-bold font-mono text-sm">
+              ${isUnlocked ? `0${floorNum}` : '🔒'}
+            </div>
+            <div>
+              <div class="text-xs sm:text-sm font-bold ${isUnlocked ? 'text-slate-100' : 'text-slate-500'}">${f.name}</div>
+              <div class="text-[10px] text-slate-400">${f.desc}</div>
+            </div>
+          </div>
+          ${isUnlocked ? '<span class="text-xs font-bold text-amber-400">挑戰 ⚔️</span>' : '<span class="text-[10px] text-slate-600">未解鎖</span>'}
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    /* Start Battle Logic */
+    function startBattleFloor(floorNum) {
+      playSound('correct');
+      currentBattle.floor = floorNum;
+      currentBattle.questionIndex = 0;
+      currentBattle.questions = [...(QUESTION_BANK[`floor${floorNum}`] || QUESTION_BANK['floor1'])];
+      
+      const monsterData = MONSTERS[floorNum];
+      currentBattle.enemyHp = monsterData.hp;
+      currentBattle.enemyMaxHp = monsterData.maxHp;
+
+      document.getElementById('screen-floors').classList.add('hidden');
+      document.getElementById('screen-battle').classList.remove('hidden');
+      document.getElementById('screen-battle').classList.add('flex');
+
+      document.getElementById('battle-enemy-name').innerText = monsterData.name;
+      document.getElementById('enemy-sprite-container').innerHTML = `<span class="text-6xl sm:text-7xl filter drop-shadow-lg">${monsterData.icon}</span>`;
+
+      updateBattleStats();
+      loadCurrentQuestion();
+    }
+
+    function loadCurrentQuestion() {
+      const q = currentBattle.questions[currentBattle.questionIndex];
+      currentBattle.currentQ = q;
+
+      document.getElementById('question-category').innerText = `${currentBattle.floor}F ${q.category}`;
+      document.getElementById('question-count').innerText = `第 ${currentBattle.questionIndex + 1} / ${currentBattle.questions.length} 題`;
+      document.getElementById('question-text').innerText = q.question;
+
+      const optsContainer = document.getElementById('options-container');
+      optsContainer.innerHTML = '';
+
+      q.options.forEach((optText, optIdx) => {
+        const btn = document.createElement('button');
+        btn.className = "option-btn w-full p-2.5 bg-slate-800 hover:bg-slate-700 active:bg-purple-900 border border-slate-700 rounded-xl text-xs text-left text-slate-200 leading-relaxed font-medium transition-all shadow";
+        btn.id = `opt-btn-${optIdx}`;
+        btn.innerText = optText;
+        btn.onclick = () => submitAnswer(optIdx);
+        optsContainer.appendChild(btn);
+      });
+
+      document.getElementById('enemy-buff-badge').classList.add('hidden');
+      updateSkillButtons();
+    }
+
+    function submitAnswer(chosenIdx) {
+      const q = currentBattle.currentQ;
+      const isCorrect = chosenIdx === q.answer;
+
+      if (isCorrect) {
+        playSound('correct');
+        let dmg = player.atk + Math.floor(Math.random() * 10);
+        if (currentBattle.critActive) {
+          dmg = Math.floor(dmg * 2.5);
+          currentBattle.critActive = false;
+        }
+
+        currentBattle.enemyHp = Math.max(0, currentBattle.enemyHp - dmg);
+        showFloatingDamage(`-${dmg} CRITICAL!`, 'text-amber-400 font-extrabold text-2xl');
+        setBattleToast(`🎯 答對了！法術命中對手，造成 ${dmg} 點傷害！`);
+        updateBattleStats();
+
+        showExplanationModal(true, q);
+      } else {
+        playSound('wrong');
+        const enemyAtk = MONSTERS[currentBattle.floor].atk;
+        player.hp = Math.max(0, player.hp - enemyAtk);
+        
+        document.getElementById('main-container').classList.add('shake-animation');
+        setTimeout(() => document.getElementById('main-container').classList.remove('shake-animation'), 400);
+
+        showFloatingDamage(`-${enemyAtk} HP`, 'text-red-500 font-bold text-xl');
+        setBattleToast(`❌ 答錯受創！遭魔物反擊受到 ${enemyAtk} 點傷害！`);
+        
+        // Add to mistake vault
+        if (!player.mistakes.some(m => m.id === q.id)) {
+          player.mistakes.push(q);
+          saveGameData();
+        }
+
+        updateHUD();
+        updateBattleStats();
+        showExplanationModal(false, q);
+      }
+    }
+
+    function showExplanationModal(isCorrect, q) {
+      const badge = document.getElementById('explanation-header-badge');
+      if (isCorrect) {
+        badge.className = "text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800";
+        badge.innerText = "✓ 答對了！修仙突破";
+      } else {
+        badge.className = "text-xs font-bold px-2.5 py-1 rounded-full bg-red-950 text-red-300 border border-red-800";
+        badge.innerText = "✕ 答錯了！觀念複習";
+      }
+
+      document.getElementById('explanation-body').innerHTML = `
+        <p class="font-bold text-slate-200 border-b border-slate-800 pb-1 mb-2">${q.question}</p>
+        <p class="text-amber-300 font-bold">正確答案：${q.options[q.answer]}</p>
+        <div class="mt-2 text-slate-300">${q.explanation}</div>
+      `;
+
+      openModal('modal-explanation');
+    }
+
+    function nextQuestionAfterExplanation() {
+      closeModal('modal-explanation');
+
+      if (player.hp <= 0) {
+        alert("你體力不支敗下陣來！請補充丹藥後重新挑戰！");
+        player.hp = player.maxHp;
+        updateHUD();
+        exitBattle();
+        return;
+      }
+
+      if (currentBattle.enemyHp <= 0) {
+        // Floor Defeated
+        const m = MONSTERS[currentBattle.floor];
+        player.gold += m.gold;
+        addExp(m.exp);
+        
+        if (currentBattle.floor === player.unlockedFloor && player.unlockedFloor < 5) {
+          player.unlockedFloor++;
+        }
+
+        saveGameData();
+        alert(`恭喜擊敗 ${m.name}！獲得 金幣 +${m.gold}、EXP +${m.exp}！`);
+        exitBattle();
+        return;
+      }
+
+      currentBattle.questionIndex = (currentBattle.questionIndex + 1) % currentBattle.questions.length;
+      loadCurrentQuestion();
+    }
+
+    function exitBattle() {
+      document.getElementById('screen-battle').classList.add('hidden');
+      renderFloorSelect();
+      document.getElementById('screen-floors').classList.remove('hidden');
+    }
+
+    /* Skills Implementation */
+    function useSkill(type) {
+      if (type === 'hint' && player.items.hint > 0) {
+        player.items.hint--;
+        const q = currentBattle.currentQ;
+        let removed = 0;
+        q.options.forEach((_, idx) => {
+          if (idx !== q.answer && removed < 2) {
+            const btn = document.getElementById(`opt-btn-${idx}`);
+            if (btn) btn.style.display = 'none';
+            removed++;
+          }
+        });
+        document.getElementById('enemy-buff-badge').classList.remove('hidden');
+        setBattleToast("📖 啟用考前筆記，已剔除兩個錯誤選項！");
+      } else if (type === 'heal' && player.items.heal > 0) {
+        player.items.heal--;
+        const healAmt = Math.floor(player.maxHp * 0.5);
+        player.hp = Math.min(player.maxHp, player.hp + healAmt);
+        showFloatingDamage(`+${healAmt} HP`, 'text-emerald-400 font-bold text-xl');
+        setBattleToast(`🧪 服用靈芝草藥，恢復了 ${healAmt} 點生命值！`);
+      } else if (type === 'crit' && player.items.crit > 0) {
+        player.items.crit--;
+        currentBattle.critActive = true;
+        setBattleToast("⚡ 激發分子暴擊！下一次答對傷害加倍！");
+      }
+
+      updateHUD();
+      updateSkillButtons();
+    }
+
+    function updateSkillButtons() {
+      document.getElementById('count-hint').innerText = player.items.hint;
+      document.getElementById('count-heal').innerText = player.items.heal;
+      document.getElementById('count-crit').innerText = player.items.crit;
+    }
+
+    /* Floating UI Elements */
+    function showFloatingDamage(text, textStyle) {
+      const layer = document.getElementById('damage-floating-layer');
+      const el = document.createElement('div');
+      el.className = `absolute floating-damage ${textStyle}`;
+      el.innerText = text;
+      layer.appendChild(el);
+      setTimeout(() => el.remove(), 900);
+    }
+
+    function setBattleToast(msg) {
+      document.getElementById('battle-toast').innerText = msg;
+    }
+
+    function updateBattleStats() {
+      document.getElementById('battle-player-name').innerText = player.className;
+      document.getElementById('battle-player-hp-num').innerText = `${player.hp}/${player.maxHp}`;
+      document.getElementById('battle-player-hp-bar').style.width = `${(player.hp / player.maxHp) * 100}%`;
+
+      document.getElementById('battle-enemy-hp-num').innerText = `${currentBattle.enemyHp}/${currentBattle.enemyMaxHp}`;
+      document.getElementById('battle-enemy-hp-bar').style.width = `${(currentBattle.enemyHp / currentBattle.enemyMaxHp) * 100}%`;
+    }
+
+    function updateHUD() {
+      document.getElementById('hud-avatar').innerText = player.avatar;
+      document.getElementById('hud-name').innerText = player.className;
+      document.getElementById('hud-level').innerText = `Lv.${player.level}`;
+      document.getElementById('hud-gold').innerText = player.gold;
+      document.getElementById('hud-exp-bar').style.width = `${(player.exp / player.maxExp) * 100}%`;
+
+      const badge = document.getElementById('badge-mistakes');
+      if (player.mistakes.length > 0) {
+        badge.innerText = player.mistakes.length;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function addExp(amount) {
+      player.exp += amount;
+      if (player.exp >= player.maxExp) {
+        playSound('levelUp');
+        player.level++;
+        player.exp -= player.maxExp;
+        player.maxExp = Math.floor(player.maxExp * 1.3);
+        player.maxHp += 15;
+        player.hp = player.maxHp;
+        player.atk += 8;
+        alert(`🎉 恭喜突破升級至 Lv.${player.level}！生命值與攻擊力大幅提升！`);
+      }
+      updateHUD();
+    }
+
+    /* Shop Logic */
+    function openShopModal() { playSound('hit'); openModal('modal-shop'); }
+    function buyItem(type, cost) {
+      if (player.gold >= cost) {
+        playSound('correct');
+        player.gold -= cost;
+        player.items[type]++;
+        updateHUD();
+        updateSkillButtons();
+        saveGameData();
+        alert("購買成功！");
+      } else {
+        playSound('wrong');
+        alert("金幣不足！請先通關試煉獲取金幣。");
+      }
+    }
+
+    /* Mistake Vault Modal */
+    function openMistakeModal() {
+      playSound('hit');
+      const container = document.getElementById('mistakes-list-container');
+      container.innerHTML = '';
+
+      if (player.mistakes.length === 0) {
+        container.innerHTML = '<div class="text-center text-slate-500 my-8 text-xs">目前沒有錯題紀錄！繼續保持！</div>';
+      } else {
+        player.mistakes.forEach((m, idx) => {
+          const item = document.createElement('div');
+          item.className = "bg-slate-950 border border-slate-800 p-3 rounded-xl space-y-1.5";
+          item.innerHTML = `
+            <div class="text-[10px] text-purple-400 font-bold">#${idx + 1} ${m.category}</div>
+            <div class="text-xs font-bold text-slate-200">${m.question}</div>
+            <div class="text-xs text-amber-300 font-bold">正確答案：${m.options[m.answer]}</div>
+            <div class="text-[11px] text-slate-400 border-t border-slate-900 pt-1 leading-relaxed">${m.explanation}</div>
+          `;
+          container.appendChild(item);
+        });
+      }
+
+      openModal('modal-mistakes');
+    }
+
+    function clearMistakes() {
+      player.mistakes = [];
+      saveGameData();
+      updateHUD();
+      openMistakeModal();
+    }
+
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { playSound('hit'); document.getElementById(id).classList.add('hidden'); }
+  </script>
+</body>
+</html>
