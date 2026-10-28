@@ -302,7 +302,7 @@
       </div>
 
       <button onclick="nextQuestionAfterExplanation()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-lg">
-        繼續試炼 (Next Challenge)
+        繼續試煉 (Next Challenge)
       </button>
     </div>
   </div>
